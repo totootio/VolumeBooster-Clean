@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   build:
@@ -22,13 +23,24 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      # 不依赖 runner 预装 SDK：直接下载官方 cmdline-tools，固定路径安装所需组件
       - name: Set up Android SDK
         run: |
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager "platforms;android-33" "build-tools;33.0.2"
+          set -euxo pipefail
+          echo "ANDROID_HOME=${ANDROID_HOME:-unset}"
+          curl -fsSL -o /tmp/clt.zip \
+            https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          rm -rf /tmp/clt && mkdir -p /tmp/clt
+          unzip -q /tmp/clt.zip -d /tmp/clt
+          yes | /tmp/clt/cmdline-tools/bin/sdkmanager --sdk_root="${ANDROID_HOME}" --licenses \
+            > /dev/null 2>&1 || true
+          /tmp/clt/cmdline-tools/bin/sdkmanager --sdk_root="${ANDROID_HOME}" \
+            "platforms;android-33" "build-tools;33.0.2"
+          ls "${ANDROID_HOME}/build-tools"
 
       - name: Build APK
         run: |
+          set -euxo pipefail
           chmod +x build.sh
           ./build.sh
 
@@ -41,3 +53,23 @@ jobs:
           files: VolumeBooster_Clean_*.apk
           generate_release_notes: true
           fail_on_unmatched_files: true
+
+      # 沙箱网络只能读 GitHub API（日志走 blob 存储被代理拦截），
+      # 失败时自动建 Issue 回传诊断信息
+      - name: Report failure diagnostics
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "## CI 失败诊断"
+            echo "run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "ANDROID_HOME=${ANDROID_HOME:-unset}"
+            echo '```'
+            ls "${ANDROID_HOME}" 2>&1 || true
+            ls "${ANDROID_HOME}/build-tools" 2>&1 || true
+            ls "${ANDROID_HOME}/platforms" 2>&1 || true
+            echo '```'
+          } > diag.md
+          gh issue create --title "CI failure diagnostics ($GITHUB_RUN_ID)" \
+            --body-file diag.md || true

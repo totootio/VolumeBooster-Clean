@@ -56,8 +56,13 @@ public class MainActivity extends Activity {
                             "增益过高可能失真，请注意保护听力", Toast.LENGTH_LONG).show();
                 }
                 prefs.edit().putInt(KEY_BOOST, progress).apply();
-                // 通知栏与界面即时刷新（服务若在运行，会通过监听器更新增益）
-                BoosterService.applyBoost(MainActivity.this, progress);
+                // 拖动大于 0 时自动开启服务，无需再点按钮
+                if (progress > 0 && !BoosterService.running) {
+                    startService(new Intent(MainActivity.this, BoosterService.class)
+                            .setAction(ACTION_START));
+                }
+                // 服务运行时通过监听器更新增益；未运行时先存值
+                BoosterService.applyBoost(progress);
                 refreshUi();
             }
 
@@ -91,6 +96,8 @@ public class MainActivity extends Activity {
         tvDb.setText(String.format("增益 %.2f dB", boost * 0.075f));
         boolean running = BoosterService.running;
         btnToggle.setText(running ? "关闭增强" : "开启增强");
-        tvStatus.setText(running ? "运行中（后台常驻）" : "未开启");
+        tvStatus.setText(running
+                ? BoosterService.status
+                : (boost > 0 ? "未开启（拖动滑块或点按钮开启）" : "未开启"));
     }
 }

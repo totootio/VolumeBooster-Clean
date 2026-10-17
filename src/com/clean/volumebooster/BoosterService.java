@@ -7,25 +7,35 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.media.audiofx.DynamicsProcessing;
+import android.media.audiofx.Equalizer;
 import android.media.audiofx.LoudnessEnhancer;
 import android.os.Build;
 import android.os.IBinder;
 
 /**
- * 前台服务：对全局音频会话（session 0）施加 LoudnessEnhancer 增益。
- * 仅此一个职责，无广告、无统计、无网络。
+ * 前台服务：对全局音频会话（session 0）施加音频增益。
+ * 三级引擎回退：LoudnessEnhancer → Equalizer → DynamicsProcessing，
+ * 覆盖不同 OEM 音频栈的支持差异。无广告、无统计、无网络。
  */
 public class BoosterService extends Service {
 
     public static boolean running = false;
+    /** 当前生效引擎描述 / 最近一次错误，供界面显示 */
+    public static String status = "未开启";
 
-    private static LoudnessEnhancer enhancer;
+    private static LoudnessEnhancer le;
+    private static Equalizer eq;
+    private static DynamicsProcessing dp;
+    /** 1=LoudnessEnhancer 2=Equalizer 3=DynamicsProcessing 0=无 */
+    private static int mode = 0;
 
     private final SharedPreferences.OnSharedPreferenceChangeListener prefListener =
             (prefs, key) -> {
                 if (MainActivity.KEY_BOOST.equals(key)) {
-                    setGain(prefs.getInt(key, 0));
-                    updateNotification(prefs.getInt(key, 0));
+                    int p = prefs.getInt(key, 0);
+                    setGain(p);
+                    updateNotification(p);
                 }
             };
 
@@ -57,7 +67,8 @@ public class BoosterService extends Service {
         running = false;
         getSharedPreferences(MainActivity.PREFS, MODE_PRIVATE)
                 .unregisterOnSharedPreferenceChangeListener(prefListener);
-        releaseEnhancer();
+        releaseAll();
+        status = "未开启";
         super.onDestroy();
     }
 
@@ -66,37 +77,113 @@ public class BoosterService extends Service {
         return null;
     }
 
-    // ---------- 增益控制 ----------
+    // ---------- 增益控制：三级引擎 ----------
 
-    /** 供 Activity 在服务未启动时也能即时刷新已有特效；无特效时静默忽略 */
-    public static void applyBoost(Context ctx, int percent) {
-        if (enhancer != null) setGain(percent);
+    /** 供 Activity 调用；服务未运行时静默忽略 */
+    public static void applyBoost(int percent) {
+        if (running) setGain(percent);
     }
 
     private static void setGain(int percent) {
-        try {
-            if (enhancer == null) {
-                // session 0 = 全局输出混音，作用于所有媒体音量的软件后级
-                enhancer = new LoudnessEnhancer(0);
+        StringBuilder err = new StringBuilder();
+
+        // 1) LoudnessEnhancer（API 19+，首选）
+        if (le == null) {
+            try {
+                le = new LoudnessEnhancer(0);
+            } catch (RuntimeException e) {
+                le = null;
+                err.append("LE:").append(e.getClass().getSimpleName()).append("; ");
             }
-            // 1% ≈ 75 mB，满量程 100% = +7.5 dB
-            enhancer.setTargetGain(percent * 75);
-            enhancer.setEnabled(percent > 0);
-        } catch (RuntimeException e) {
-            // 特效引擎不可用或被占用：增益功能降级关闭
-            enhancer = null;
         }
+        if (le != null) {
+            try {
+                le.setTargetGain(percent * 75);   // 1% = 75 mB，满量程 +7.5 dB
+                le.setEnabled(percent > 0);
+                if (percent > 0 && !le.hasControl()) {
+                    // 引擎被其他应用抢占：重建一次
+                    le.release();
+                    le = new LoudnessEnhancer(0);
+                    le.setTargetGain(percent * 75);
+                    le.setEnabled(true);
+                }
+                mode = 1;
+                status = "运行中 · LoudnessEnhancer";
+                return;
+            } catch (RuntimeException e) {
+                err.append("LE-set:").append(e.getClass().getSimpleName()).append("; ");
+                le = null;
+            }
+        }
+
+        // 2) Equalizer（老设备兜底，分频段提升）
+        if (eq == null) {
+            try {
+                eq = new Equalizer(0, 0);
+            } catch (RuntimeException e) {
+                eq = null;
+                err.append("EQ:").append(e.getClass().getSimpleName()).append("; ");
+            }
+        }
+        if (eq != null) {
+            try {
+                short bands = eq.getNumberOfBands();
+                short level = (short) (percent * 15);  // 满量程约 +15 dB（受硬件范围限制）
+                for (short i = 0; i < bands; i++) {
+                    eq.setBandLevel(i, level);
+                }
+                eq.setEnabled(percent > 0);
+                mode = 2;
+                status = "运行中 · Equalizer";
+                return;
+            } catch (RuntimeException e) {
+                err.append("EQ-set:").append(e.getClass().getSimpleName()).append("; ");
+                eq = null;
+            }
+        }
+
+        // 3) DynamicsProcessing（API 28+，post-EQ 增益 + 限幅器）
+        if (dp == null && Build.VERSION.SDK_INT >= 28) {
+            try {
+                DynamicsProcessing.Config cfg = new DynamicsProcessing.Config.Builder(
+                        DynamicsProcessing.VARIANT_FAVOR_FREQUENCY_RESOLUTION,
+                        2,      // 声道数
+                        false, 0,   // preEq
+                        false, 0,   // mbc
+                        true, 3,    // postEq：3 段
+                        true        // limiter：防削顶
+                ).build();
+                dp = new DynamicsProcessing(0, 0, cfg);
+            } catch (Throwable e) {
+                dp = null;
+                err.append("DP:").append(e.getClass().getSimpleName()).append("; ");
+            }
+        }
+        if (dp != null) {
+            try {
+                float gainDb = percent * 0.075f;   // 与 LE 标度一致：满量程 +7.5 dB
+                dp.setPostEqBandAllChannelsTo(0,
+                        new DynamicsProcessing.EqBand(true, gainDb, 0f));
+                dp.setEnabled(percent > 0);
+                mode = 3;
+                status = "运行中 · DynamicsProcessing";
+                return;
+            } catch (Throwable e) {
+                err.append("DP-set:").append(e.getClass().getSimpleName()).append("; ");
+                dp = null;
+            }
+        }
+
+        mode = 0;
+        status = "音频特效创建失败（设备不支持或被占用）: " + err;
     }
 
-    private static void releaseEnhancer() {
-        if (enhancer != null) {
-            try {
-                enhancer.setEnabled(false);
-                enhancer.release();
-            } catch (RuntimeException ignored) {
-            }
-            enhancer = null;
-        }
+    private static void releaseAll() {
+        try { if (le != null) { le.setEnabled(false); le.release(); } } catch (RuntimeException ignored) {}
+        try { if (eq != null) { eq.setEnabled(false); eq.release(); } } catch (RuntimeException ignored) {}
+        try { if (dp != null) { dp.setEnabled(false); dp.release(); } } catch (RuntimeException ignored) {}
+        le = null; eq = null; dp = null;
+        mode = 0;
     }
 
     // ---------- 通知 ----------

@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platforms;android-33" "build-tools;33.0.2"
+
+      - name: Build APK
+        run: |
+          chmod +x build.sh
+          ./build.sh
+
+      - name: Rename APK with tag
+        run: mv VolumeBooster_Clean.apk "VolumeBooster_Clean_${GITHUB_REF_NAME}.apk"
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: VolumeBooster_Clean_*.apk
+          generate_release_notes: true
+          fail_on_unmatched_files: true

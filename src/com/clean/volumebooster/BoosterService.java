@@ -93,7 +93,7 @@ public class BoosterService extends Service {
                 le = new LoudnessEnhancer(0);
             } catch (RuntimeException e) {
                 le = null;
-                err.append("LE:").append(e.getClass().getSimpleName()).append("; ");
+                err.append("LE:").append(e.getClass().getSimpleName()).append("(").append(e.getMessage()).append(")").append("; ");
             }
         }
         if (le != null) {
@@ -111,7 +111,7 @@ public class BoosterService extends Service {
                 status = "运行中 · LoudnessEnhancer";
                 return;
             } catch (RuntimeException e) {
-                err.append("LE-set:").append(e.getClass().getSimpleName()).append("; ");
+                err.append("LE-set:").append(e.getClass().getSimpleName()).append("(").append(e.getMessage()).append(")").append("; ");
                 le = null;
             }
         }
@@ -122,7 +122,7 @@ public class BoosterService extends Service {
                 eq = new Equalizer(0, 0);
             } catch (RuntimeException e) {
                 eq = null;
-                err.append("EQ:").append(e.getClass().getSimpleName()).append("; ");
+                err.append("EQ:").append(e.getClass().getSimpleName()).append("(").append(e.getMessage()).append(")").append("; ");
             }
         }
         if (eq != null) {
@@ -137,7 +137,7 @@ public class BoosterService extends Service {
                 status = "运行中 · Equalizer";
                 return;
             } catch (RuntimeException e) {
-                err.append("EQ-set:").append(e.getClass().getSimpleName()).append("; ");
+                err.append("EQ-set:").append(e.getClass().getSimpleName()).append("(").append(e.getMessage()).append(")").append("; ");
                 eq = null;
             }
         }
@@ -156,7 +156,7 @@ public class BoosterService extends Service {
                 dp = new DynamicsProcessing(0, 0, cfg);
             } catch (Throwable e) {
                 dp = null;
-                err.append("DP:").append(e.getClass().getSimpleName()).append("; ");
+                err.append("DP:").append(e.getClass().getSimpleName()).append("(").append(e.getMessage()).append(")").append("; ");
             }
         }
         if (dp != null) {
@@ -169,7 +169,7 @@ public class BoosterService extends Service {
                 status = "运行中 · DynamicsProcessing";
                 return;
             } catch (Throwable e) {
-                err.append("DP-set:").append(e.getClass().getSimpleName()).append("; ");
+                err.append("DP-set:").append(e.getClass().getSimpleName()).append("(").append(e.getMessage()).append(")").append("; ");
                 dp = null;
             }
         }

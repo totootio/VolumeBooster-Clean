@@ -32,10 +32,9 @@ public class MainActivity extends Activity {
     private TextView tvGain;
     private TextView tvDb;
     private TextView tvStatus;
-    private TextView pillText;
+    private TextView tvPill;
     private android.widget.Button btnToggle;
-    private View pillFill;
-    private View pillRest;
+    private android.widget.SeekBar seekBar;
     private LinearLayout presetsRow;
     private SharedPreferences prefs;
 
@@ -50,10 +49,9 @@ public class MainActivity extends Activity {
         tvGain = findViewById(R.id.tv_gain);
         tvDb = findViewById(R.id.tv_db);
         tvStatus = findViewById(R.id.tv_status);
-        pillText = findViewById(R.id.pill_text);
+        tvPill = findViewById(R.id.tv_pill);
         btnToggle = findViewById(R.id.btn_toggle);
-        pillFill = findViewById(R.id.pill_fill);
-        pillRest = findViewById(R.id.pill_rest);
+        seekBar = findViewById(R.id.seek_bar);
         presetsRow = findViewById(R.id.presets);
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
 
@@ -69,6 +67,15 @@ public class MainActivity extends Activity {
 
         findViewById(R.id.btn_minus).setOnClickListener(v -> adjust(-STEP));
         findViewById(R.id.btn_plus).setOnClickListener(v -> adjust(STEP));
+        seekBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(android.widget.SeekBar bar, int progress, boolean fromUser) {
+                if (fromUser) applyValue(progress);
+            }
+
+            @Override public void onStartTrackingTouch(android.widget.SeekBar bar) {}
+            @Override public void onStopTrackingTouch(android.widget.SeekBar bar) {}
+        });
         btnToggle.setOnClickListener(v -> {
             if (BoosterService.running) {
                 startService(new Intent(this, BoosterService.class).setAction(ACTION_STOP));
@@ -150,15 +157,8 @@ public class MainActivity extends Activity {
 
         tvGain.setText(percent + "%");
         tvDb.setText(String.format("增益 %+.2f dB", percent * 0.075f));
-        pillText.setText("音量增强 " + percent + "%");
-
-        // 胶囊进度填充（weight 0~100）
-        LinearLayout.LayoutParams f = (LinearLayout.LayoutParams) pillFill.getLayoutParams();
-        LinearLayout.LayoutParams r = (LinearLayout.LayoutParams) pillRest.getLayoutParams();
-        f.weight = percent;
-        r.weight = 100 - percent;
-        pillFill.setLayoutParams(f);
-        pillRest.setLayoutParams(r);
+        tvPill.setText(String.format("音量增强 %d%% · %+.2f dB", percent, percent * 0.075f));
+        if (seekBar.getProgress() != percent) seekBar.setProgress(percent);
 
         // 预设 chips 选中态
         for (int i = 0; i < presetsRow.getChildCount(); i++) {

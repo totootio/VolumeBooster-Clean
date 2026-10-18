@@ -58,7 +58,16 @@
         android:orientation="vertical"
         android:layout_marginBottom="25dp">
 
-        <!-- − / 胶囊 / + -->
+        <!-- 增益标签 -->
+        <TextView
+            android:id="@+id/tv_pill"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="音量增强 0% · +0.00 dB"
+            android:textSize="12sp"
+            android:textColor="@color/text_secondary" />
+
+        <!-- − / 滑条 / + -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -74,45 +83,17 @@
                 android:textSize="24sp"
                 android:textColor="@color/text_primary" />
 
-            <FrameLayout
-                android:id="@+id/pill"
+            <SeekBar
+                android:id="@+id/seek_bar"
                 android:layout_width="0dp"
-                android:layout_height="48dp"
+                android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_marginStart="12dp"
                 android:layout_marginEnd="12dp"
-                android:background="@drawable/bg_pill"
-                android:clipChildren="true"
-                android:clipToOutline="true">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:orientation="horizontal">
-
-                    <View
-                        android:id="@+id/pill_fill"
-                        android:layout_width="0dp"
-                        android:layout_height="match_parent"
-                        android:layout_weight="0"
-                        android:background="@drawable/bg_pill_fill" />
-
-                    <View
-                        android:id="@+id/pill_rest"
-                        android:layout_width="0dp"
-                        android:layout_height="match_parent"
-                        android:layout_weight="100" />
-                </LinearLayout>
-
-                <TextView
-                    android:id="@+id/pill_text"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:gravity="center"
-                    android:text="音量增强 0%"
-                    android:textSize="14sp"
-                    android:textColor="@color/text_primary" />
-            </FrameLayout>
+                android:max="100"
+                android:progressTint="@color/purple"
+                android:progressBackgroundTint="@color/pill_bg"
+                android:thumbTint="@color/purple" />
 
             <Button
                 android:id="@+id/btn_plus"

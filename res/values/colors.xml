@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#121212</color>
+    <color name="purple">#7C5CFF</color>
+    <color name="pill_bg">#2E2E2E</color>
+    <color name="chip_bg">#2E2E2E</color>
+    <color name="chip_text">#B0B0B0</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#9E9E9E</color>
+</resources>

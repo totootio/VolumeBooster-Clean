@@ -26,15 +26,18 @@ public class MainActivity extends Activity {
 
     private static final int STEP = 5;
     private static final int[] PRESETS = {0, 25, 50, 75, 100};
+    /** 首次启动的默认增益 */
+    private static final int DEFAULT_BOOST = 50;
 
     private TextView tvGain;
     private TextView tvDb;
     private TextView tvStatus;
     private TextView pillText;
-    private TextView btnClose;
+    private android.widget.Button btnToggle;
     private View pillFill;
     private View pillRest;
     private LinearLayout presetsRow;
+    private SharedPreferences prefs;
 
     private final SharedPreferences.OnSharedPreferenceChangeListener prefListener =
             (prefs, key) -> runOnUiThread(this::refreshUi);
@@ -48,10 +51,16 @@ public class MainActivity extends Activity {
         tvDb = findViewById(R.id.tv_db);
         tvStatus = findViewById(R.id.tv_status);
         pillText = findViewById(R.id.pill_text);
-        btnClose = findViewById(R.id.btn_close);
+        btnToggle = findViewById(R.id.btn_toggle);
         pillFill = findViewById(R.id.pill_fill);
         pillRest = findViewById(R.id.pill_rest);
         presetsRow = findViewById(R.id.presets);
+        prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+
+        // 首次启动给一个默认增益
+        if (!prefs.contains(KEY_BOOST)) {
+            prefs.edit().putInt(KEY_BOOST, DEFAULT_BOOST).apply();
+        }
 
         // 请求通知权限（Android 13+），用于前台服务通知
         if (Build.VERSION.SDK_INT >= 33) {
@@ -60,15 +69,30 @@ public class MainActivity extends Activity {
 
         findViewById(R.id.btn_minus).setOnClickListener(v -> adjust(-STEP));
         findViewById(R.id.btn_plus).setOnClickListener(v -> adjust(STEP));
-        btnClose.setOnClickListener(v -> {
-            startService(new Intent(this, BoosterService.class).setAction(ACTION_STOP));
-            refreshUi();
+        btnToggle.setOnClickListener(v -> {
+            if (BoosterService.running) {
+                startService(new Intent(this, BoosterService.class).setAction(ACTION_STOP));
+                refreshUi();
+            } else {
+                // 开启时若增益为 0，先给默认值
+                if (prefs.getInt(KEY_BOOST, 0) <= 0) {
+                    prefs.edit().putInt(KEY_BOOST, DEFAULT_BOOST).apply();
+                }
+                startService(new Intent(this, BoosterService.class).setAction(ACTION_START));
+                refreshUi();
+                presetsRow.postDelayed(this::refreshUi, 600);
+            }
         });
 
         buildPresets();
 
-        getSharedPreferences(PREFS, MODE_PRIVATE)
-                .registerOnSharedPreferenceChangeListener(prefListener);
+        prefs.registerOnSharedPreferenceChangeListener(prefListener);
+
+        // 启动默认开启：有增益值就自动启动服务
+        if (prefs.getInt(KEY_BOOST, 0) > 0 && !BoosterService.running) {
+            startService(new Intent(this, BoosterService.class).setAction(ACTION_START));
+            presetsRow.postDelayed(this::refreshUi, 600);
+        }
     }
 
     @Override
@@ -80,7 +104,7 @@ public class MainActivity extends Activity {
     // ---------- 交互 ----------
 
     private void adjust(int delta) {
-        int cur = getSharedPreferences(PREFS, MODE_PRIVATE).getInt(KEY_BOOST, 0);
+        int cur = prefs.getInt(KEY_BOOST, 0);
         applyValue(Math.max(0, Math.min(100, cur + delta)));
     }
 
@@ -88,8 +112,7 @@ public class MainActivity extends Activity {
         if (percent > 60) {
             Toast.makeText(this, "增益过高可能失真，请注意保护听力", Toast.LENGTH_SHORT).show();
         }
-        getSharedPreferences(PREFS, MODE_PRIVATE)
-                .edit().putInt(KEY_BOOST, percent).apply();
+        prefs.edit().putInt(KEY_BOOST, percent).apply();
         boolean starting = percent > 0 && !BoosterService.running;
         if (starting) {
             startService(new Intent(this, BoosterService.class).setAction(ACTION_START));
@@ -123,7 +146,7 @@ public class MainActivity extends Activity {
     // ---------- UI 刷新 ----------
 
     private void refreshUi() {
-        int percent = getSharedPreferences(PREFS, MODE_PRIVATE).getInt(KEY_BOOST, 0);
+        int percent = prefs.getInt(KEY_BOOST, 0);
 
         tvGain.setText(percent + "%");
         tvDb.setText(String.format("增益 %+.2f dB", percent * 0.075f));
@@ -148,10 +171,11 @@ public class MainActivity extends Activity {
         }
 
         boolean running = BoosterService.running;
-        btnClose.setVisibility(running ? View.VISIBLE : View.GONE);
+        btnToggle.setText(running ? "关闭增强" : "开启增强");
+        btnToggle.setBackgroundResource(running ? R.drawable.bg_toggle_on : R.drawable.bg_toggle_off);
         tvStatus.setText(running
                 ? BoosterService.status
-                : (percent > 0 ? "未开启（点 + 或预设开启）" : "未开启"));
+                : (percent > 0 ? "已暂停（点开关开启）" : "未开启"));
     }
 
     private int dp(int v) {

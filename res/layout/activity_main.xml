@@ -51,22 +51,12 @@
             android:textColor="@color/text_secondary" />
     </LinearLayout>
 
-    <!-- 底部控制条：单手操作区 -->
+    <!-- 底部控制条：单手操作区（整体上抬 25dp） -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
-
-        <TextView
-            android:id="@+id/btn_close"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="right"
-            android:padding="8dp"
-            android:text="关闭增强"
-            android:textSize="13sp"
-            android:textColor="@color/text_secondary"
-            android:visibility="gone" />
+        android:orientation="vertical"
+        android:layout_marginBottom="25dp">
 
         <!-- − / 胶囊 / + -->
         <LinearLayout
@@ -147,6 +137,17 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal" />
         </HorizontalScrollView>
+
+        <!-- 总开关 -->
+        <Button
+            android:id="@+id/btn_toggle"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_toggle_off"
+            android:text="开启增强"
+            android:textSize="15sp"
+            android:textColor="@color/text_primary" />
 
         <TextView
             android:id="@+id/tv_status"

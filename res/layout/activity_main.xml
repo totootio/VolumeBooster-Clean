@@ -126,7 +126,7 @@
             android:layout_height="46dp"
             android:layout_marginTop="12dp"
             android:background="@drawable/bg_toggle_off"
-            android:text="开启增强"
+            android:text="开启"
             android:textSize="15sp"
             android:textColor="@color/text_primary" />
 

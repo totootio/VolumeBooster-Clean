@@ -5,10 +5,12 @@
 
 ## 功能
 
-- 滑块 0~100% → 0~+7.5 dB 全局媒体音量增益（`LoudnessEnhancer`，session 0）
-- 前台服务常驻，App 退后台增益持续生效
-- 通知栏实时显示当前增益
-- minSdk 19 / targetSdk 33，零第三方依赖，APK 约 17 KB
+- 底部单手控制条：− / 滑条 / + 与预设面包块（-40% / -20% / 0 / +10% / +20% / +30%）
+- 增益范围 **-40% ~ +30%**（-3.0 dB ~ +2.25 dB，负值为衰减），`LoudnessEnhancer` session 0 全局生效
+- 三级引擎回退：LoudnessEnhancer → Equalizer → DynamicsProcessing（含 limiter 防过载）
+- 前台服务常驻，App 退后台增益持续生效；启动默认开启，总开关一键启停（3 秒防抖）
+- 白天 / 黑夜双皮肤，`values-night` 跟随系统深浅色
+- minSdk 19 / targetSdk 33，零第三方依赖
 
 ## 本地构建
 
@@ -28,6 +30,9 @@ git tag v1.0 && git push origin v1.0
 
 工作流见 `.github/workflows/release.yml`（ubuntu-latest + JDK 17 + Android SDK 33，
 aapt2/javac/d8/apksigner 手动构建，softprops/action-gh-release 发布附件）。
+
+签名密钥通过 secret `VB_KEYSTORE_BASE64`（base64 编码的 `vb.keystore`）在 CI 中还原，
+与本地共用同一把密钥，保证各版本可覆盖升级；secret 未配置时回退为临时自签名密钥。
 
 ## 目录
 

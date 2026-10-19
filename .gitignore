@@ -2,3 +2,4 @@ build/
 *.apk
 vb.keystore
 .DS_Store
+*.idsig

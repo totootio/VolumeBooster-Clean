@@ -31,6 +31,8 @@ public class MainActivity extends Activity {
     private static final int[] PRESETS = {-40, -20, 0, 10, 20, 30};
     /** 首次启动的默认增益 */
     private static final int DEFAULT_BOOST = 10;
+    /** 开关按钮防抖：3 秒内只允许一次点击 */
+    private static final long TOGGLE_DEBOUNCE_MS = 3000L;
 
     private TextView tvGain;
     private TextView tvDb;
@@ -40,6 +42,7 @@ public class MainActivity extends Activity {
     private android.widget.SeekBar seekBar;
     private LinearLayout presetsRow;
     private SharedPreferences prefs;
+    private long lastToggleClick = 0;
 
     private final SharedPreferences.OnSharedPreferenceChangeListener prefListener =
             (prefs, key) -> runOnUiThread(this::refreshUi);
@@ -81,6 +84,10 @@ public class MainActivity extends Activity {
             @Override public void onStopTrackingTouch(android.widget.SeekBar bar) {}
         });
         btnToggle.setOnClickListener(v -> {
+            // 防抖：3 秒内的重复点击直接忽略，避免服务频繁启停
+            long now = System.currentTimeMillis();
+            if (now - lastToggleClick < TOGGLE_DEBOUNCE_MS) return;
+            lastToggleClick = now;
             if (BoosterService.running) {
                 startService(new Intent(this, BoosterService.class).setAction(ACTION_STOP));
                 refreshUi();
@@ -138,16 +145,17 @@ public class MainActivity extends Activity {
     }
 
     private void buildPresets() {
-        int padH = dp(16), padV = dp(8);
+        // 缩小面包块：12sp 字 + 8dp/5dp 内边距 + 5dp 间距，6 个一屏放全
+        int padH = dp(8), padV = dp(5);
         for (int p : PRESETS) {
             TextView chip = new TextView(this);
             chip.setText((p > 0 ? "+" : "") + p + "%");
-            chip.setTextSize(14);
+            chip.setTextSize(12);
             chip.setGravity(Gravity.CENTER);
             chip.setPadding(padH, padV, padH, padV);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            lp.setMarginEnd(dp(8));
+            lp.setMarginEnd(dp(5));
             chip.setLayoutParams(lp);
             chip.setTag(p);
             chip.setOnClickListener(v -> applyValue(p));
@@ -179,8 +187,11 @@ public class MainActivity extends Activity {
         }
 
         boolean running = BoosterService.running;
-        btnToggle.setText(running ? "关闭增强" : "开启增强");
+        btnToggle.setText(running ? "关闭" : "开启");
         btnToggle.setBackgroundResource(running ? R.drawable.bg_toggle_on : R.drawable.bg_toggle_off);
+        // 开启态为紫色底：文字用白色（白底/白天主题下尤其需要）；关闭态用主题色保证浅灰底可读
+        btnToggle.setTextColor(getResources().getColor(
+                running ? android.R.color.white : R.color.text_primary));
         tvStatus.setText(running
                 ? BoosterService.status
                 : (percent != 0 ? "已暂停（点开关开启）" : "未开启"));

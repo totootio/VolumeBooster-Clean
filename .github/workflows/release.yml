@@ -53,6 +53,8 @@ jobs:
           ls "${ANDROID_HOME}/build-tools"
 
       - name: Build APK
+        env:
+          VB_KEYSTORE_PASS: ${{ secrets.VB_KEYSTORE_PASS }}
         run: |
           set -euxo pipefail
           chmod +x build.sh

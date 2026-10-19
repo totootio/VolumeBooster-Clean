@@ -22,8 +22,8 @@ rm -rf "$OUT" && mkdir -p "$OUT/gen" "$OUT/obj" "$OUT/apk"
   --java "$OUT/gen" \
   --min-sdk-version 19 \
   --target-sdk-version 33 \
-  --version-code 9 \
-  --version-name 1.8 \
+  --version-code 10 \
+  --version-name 1.9 \
   "$OUT/res.zip"
 
 # 3. 编译 Java（--release 8 保证 API 签名兼容；lambda 由 d8 脱糖）
@@ -45,14 +45,17 @@ cp "$OUT/base.apk" "$OUT/app-unsigned.apk"
 # 6. 对齐
 "$BT/zipalign" -f -p 4 "$OUT/app-unsigned.apk" "$OUT/app-aligned.apk"
 
-# 7. 签名（无既有密钥时自动生成自签名密钥）
+# 7. 签名（正式发布密钥：密码经环境变量 VB_KEYSTORE_PASS 传入；
+#    无既有密钥时按当前密码自动生成一把自签名密钥）
 KS="$ROOT/vb.keystore"
+KS_PASS="${VB_KEYSTORE_PASS:-android}"
 if [ ! -f "$KS" ]; then
-  keytool -genkeypair -keystore "$KS" -storepass android -keypass android \
+  keytool -genkeypair -keystore "$KS" -storetype PKCS12 \
+    -storepass "$KS_PASS" -keypass "$KS_PASS" \
     -alias vb -keyalg RSA -keysize 2048 -validity 10000 \
-    -dname "CN=VolumeBooster, O=Clean, C=CN"
+    -dname "CN=VolumeBooster, OU=Release, O=totootao, C=CN"
 fi
-"$BT/apksigner" sign --ks "$KS" --ks-pass pass:android --key-pass pass:android \
+"$BT/apksigner" sign --ks "$KS" --ks-pass pass:"$KS_PASS" --key-pass pass:"$KS_PASS" \
   --out "$ROOT/VolumeBooster_Clean.apk" "$OUT/app-aligned.apk"
 
 "$BT/apksigner" verify "$ROOT/VolumeBooster_Clean.apk"

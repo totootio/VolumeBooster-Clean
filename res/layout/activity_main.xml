@@ -90,7 +90,7 @@
                 android:layout_weight="1"
                 android:layout_marginStart="12dp"
                 android:layout_marginEnd="12dp"
-                android:max="100"
+                android:max="70"
                 android:progressTint="@color/purple"
                 android:progressBackgroundTint="@color/pill_bg"
                 android:thumbTint="@color/purple" />

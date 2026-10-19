@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 白天（浅色）调色板：系统非夜间模式时使用 -->
 <resources>
-    <color name="bg">#121212</color>
-    <color name="purple">#7C5CFF</color>
-    <color name="pill_bg">#2E2E2E</color>
-    <color name="chip_bg">#2E2E2E</color>
-    <color name="chip_text">#B0B0B0</color>
-    <color name="text_primary">#FFFFFF</color>
-    <color name="text_secondary">#9E9E9E</color>
+    <color name="bg">#FFFBFE</color>
+    <color name="purple">#6750A4</color>
+    <color name="pill_bg">#E7E0EC</color>
+    <color name="chip_bg">#ECE6F0</color>
+    <color name="chip_text">#49454F</color>
+    <color name="text_primary">#1C1B1F</color>
+    <color name="text_secondary">#79747E</color>
 </resources>

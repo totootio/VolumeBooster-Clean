@@ -25,9 +25,12 @@ public class MainActivity extends Activity {
     public static final String ACTION_STOP = "com.clean.volumebooster.STOP";
 
     private static final int STEP = 5;
-    private static final int[] PRESETS = {0, 25, 50, 75, 100};
+    /** 增益范围：-40% ~ +30%（负值为衰减） */
+    public static final int MIN_BOOST = -40;
+    public static final int MAX_BOOST = 30;
+    private static final int[] PRESETS = {-40, -20, 0, 10, 20, 30};
     /** 首次启动的默认增益 */
-    private static final int DEFAULT_BOOST = 50;
+    private static final int DEFAULT_BOOST = 10;
 
     private TextView tvGain;
     private TextView tvDb;
@@ -67,10 +70,11 @@ public class MainActivity extends Activity {
 
         findViewById(R.id.btn_minus).setOnClickListener(v -> adjust(-STEP));
         findViewById(R.id.btn_plus).setOnClickListener(v -> adjust(STEP));
+        seekBar.setMax(MAX_BOOST - MIN_BOOST);
         seekBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(android.widget.SeekBar bar, int progress, boolean fromUser) {
-                if (fromUser) applyValue(progress);
+                if (fromUser) applyValue(progress + MIN_BOOST);
             }
 
             @Override public void onStartTrackingTouch(android.widget.SeekBar bar) {}
@@ -82,7 +86,7 @@ public class MainActivity extends Activity {
                 refreshUi();
             } else {
                 // 开启时若增益为 0，先给默认值
-                if (prefs.getInt(KEY_BOOST, 0) <= 0) {
+                if (prefs.getInt(KEY_BOOST, 0) == 0) {
                     prefs.edit().putInt(KEY_BOOST, DEFAULT_BOOST).apply();
                 }
                 startService(new Intent(this, BoosterService.class).setAction(ACTION_START));
@@ -95,8 +99,8 @@ public class MainActivity extends Activity {
 
         prefs.registerOnSharedPreferenceChangeListener(prefListener);
 
-        // 启动默认开启：有增益值就自动启动服务
-        if (prefs.getInt(KEY_BOOST, 0) > 0 && !BoosterService.running) {
+        // 启动默认开启：有非零增益值就自动启动服务（负增益同样需要服务运行）
+        if (prefs.getInt(KEY_BOOST, 0) != 0 && !BoosterService.running) {
             startService(new Intent(this, BoosterService.class).setAction(ACTION_START));
             presetsRow.postDelayed(this::refreshUi, 600);
         }
@@ -112,15 +116,16 @@ public class MainActivity extends Activity {
 
     private void adjust(int delta) {
         int cur = prefs.getInt(KEY_BOOST, 0);
-        applyValue(Math.max(0, Math.min(100, cur + delta)));
+        applyValue(Math.max(MIN_BOOST, Math.min(MAX_BOOST, cur + delta)));
     }
 
     private void applyValue(int percent) {
-        if (percent > 60) {
-            Toast.makeText(this, "增益过高可能失真，请注意保护听力", Toast.LENGTH_SHORT).show();
+        percent = Math.max(MIN_BOOST, Math.min(MAX_BOOST, percent));
+        if (percent > 20) {
+            Toast.makeText(this, "增益较高可能失真，请注意保护听力", Toast.LENGTH_SHORT).show();
         }
         prefs.edit().putInt(KEY_BOOST, percent).apply();
-        boolean starting = percent > 0 && !BoosterService.running;
+        boolean starting = percent != 0 && !BoosterService.running;
         if (starting) {
             startService(new Intent(this, BoosterService.class).setAction(ACTION_START));
         }
@@ -136,7 +141,7 @@ public class MainActivity extends Activity {
         int padH = dp(16), padV = dp(8);
         for (int p : PRESETS) {
             TextView chip = new TextView(this);
-            chip.setText(p + "%");
+            chip.setText((p > 0 ? "+" : "") + p + "%");
             chip.setTextSize(14);
             chip.setGravity(Gravity.CENTER);
             chip.setPadding(padH, padV, padH, padV);
@@ -155,10 +160,13 @@ public class MainActivity extends Activity {
     private void refreshUi() {
         int percent = prefs.getInt(KEY_BOOST, 0);
 
-        tvGain.setText(percent + "%");
+        tvGain.setText(percent == 0 ? "0%" : String.format("%+d%%", percent));
         tvDb.setText(String.format("增益 %+.2f dB", percent * 0.075f));
-        tvPill.setText(String.format("音量增强 %d%% · %+.2f dB", percent, percent * 0.075f));
-        if (seekBar.getProgress() != percent) seekBar.setProgress(percent);
+        tvPill.setText(String.format(percent >= 0 ? "音量增强 %d%% · %+.2f dB" : "音量衰减 %d%% · %+.2f dB",
+                Math.abs(percent), percent * 0.075f));
+        if (seekBar.getProgress() != percent - MIN_BOOST) {
+            seekBar.setProgress(percent - MIN_BOOST);
+        }
 
         // 预设 chips 选中态
         for (int i = 0; i < presetsRow.getChildCount(); i++) {
@@ -175,7 +183,7 @@ public class MainActivity extends Activity {
         btnToggle.setBackgroundResource(running ? R.drawable.bg_toggle_on : R.drawable.bg_toggle_off);
         tvStatus.setText(running
                 ? BoosterService.status
-                : (percent > 0 ? "已暂停（点开关开启）" : "未开启"));
+                : (percent != 0 ? "已暂停（点开关开启）" : "未开启"));
     }
 
     private int dp(int v) {

@@ -99,8 +99,8 @@ public class BoosterService extends Service {
         if (le != null) {
             try {
                 le.setTargetGain(percent * 75);   // 1% = 75 mB，满量程 +7.5 dB
-                le.setEnabled(percent > 0);
-                if (percent > 0 && !le.hasControl()) {
+                le.setEnabled(percent != 0);
+                if (percent != 0 && !le.hasControl()) {
                     // 引擎被其他应用抢占：重建一次
                     le.release();
                     le = new LoudnessEnhancer(0);
@@ -132,7 +132,7 @@ public class BoosterService extends Service {
                 for (short i = 0; i < bands; i++) {
                     eq.setBandLevel(i, level);
                 }
-                eq.setEnabled(percent > 0);
+                eq.setEnabled(percent != 0);
                 mode = 2;
                 status = "运行中 · Equalizer";
                 return;
@@ -164,7 +164,7 @@ public class BoosterService extends Service {
                 float gainDb = percent * 0.075f;   // 与 LE 标度一致：满量程 +7.5 dB
                 dp.setPostEqBandAllChannelsTo(0,
                         new DynamicsProcessing.EqBand(true, gainDb, 0f));
-                dp.setEnabled(percent > 0);
+                dp.setEnabled(percent != 0);
                 mode = 3;
                 status = "运行中 · DynamicsProcessing";
                 return;
@@ -206,7 +206,7 @@ public class BoosterService extends Service {
                 ? new Notification.Builder(this, CHANNEL_ID)
                 : new Notification.Builder(this);
         b.setSmallIcon(R.drawable.ic_stat)
-                .setContentTitle("音量增强" + (percent > 0 ? " 运行中" : " 已就绪"))
+                .setContentTitle("音量增强" + (percent != 0 ? " 运行中" : " 已就绪"))
                 .setContentText(String.format("当前增益 %d%%（%+.2f dB）",
                         percent, percent * 0.075f))
                 .setOngoing(true)

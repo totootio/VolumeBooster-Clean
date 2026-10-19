@@ -22,8 +22,8 @@ rm -rf "$OUT" && mkdir -p "$OUT/gen" "$OUT/obj" "$OUT/apk"
   --java "$OUT/gen" \
   --min-sdk-version 19 \
   --target-sdk-version 33 \
-  --version-code 8 \
-  --version-name 1.7 \
+  --version-code 9 \
+  --version-name 1.8 \
   "$OUT/res.zip"
 
 # 3. 编译 Java（--release 8 保证 API 签名兼容；lambda 由 d8 脱糖）

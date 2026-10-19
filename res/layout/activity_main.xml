@@ -105,19 +105,15 @@
                 android:textColor="@color/text_primary" />
         </LinearLayout>
 
-        <!-- 预设 chips -->
-        <HorizontalScrollView
+        <!-- 预设 chips：普通 LinearLayout + gravity=center 保证整行居中
+             （HorizontalScrollView 会忽略水平 layout_gravity 永远左对齐，故不包滚动容器） -->
+        <LinearLayout
+            android:id="@+id/presets"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:scrollbars="none">
-
-            <LinearLayout
-                android:id="@+id/presets"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal" />
-        </HorizontalScrollView>
+            android:gravity="center"
+            android:orientation="horizontal" />
 
         <!-- 总开关 -->
         <Button
